@@ -1,0 +1,16 @@
+[package]
+name = "xuexi-swifty"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[build-dependencies]
+swift-bridge-build = "0.1"
+
+[dependencies]
+xuexi = { path = "../xuexi", features = ["chinese", "laotian"]}
+swift-bridge = "0.1"
+serde_json = "1.0"
+
+[lib]
+crate-type = ["staticlib"]
