@@ -1,18 +1,27 @@
-use std::thread;
-use xuexi::chinese::Dictionary as CNDictionary;
-use xuexi::laotian::Dictionary as LaoDictionary;
+use std::vec;
+use futures::future::join_all;
+use xuexi::dictionary::{
+    Dictionary,
+    Chinese,
+    ChineseVersion,
+    Laotian
+};
 use xuexi::word::DetectWord;
+
+mod utils;
 
 #[derive(Default)]
 pub struct DictionaryWrapper {
-    chinese: Option<CNDictionary>,
-    laotian: Option<LaoDictionary>
+    t_chinese: Option<Dictionary<Chinese>>,
+    s_chinese: Option<Dictionary<Chinese>>,
+    laotian: Option<Dictionary<Laotian>>
 }
 
 #[swift_bridge::bridge]
 mod ffi {
     enum Language {
-        Chinese,
+        TraditionalChinese, 
+        SimplifiedChinese,
         Laotian
     }
 
@@ -22,7 +31,7 @@ mod ffi {
         #[swift_bridge(init)]
         fn new() -> DictionaryWrapper;
 
-        fn load_dictionaries(&mut self);
+        async fn load_dictionaries(&mut self);
 
         fn search_in_dictionaries(&self, lang: Language, sentence: &str) -> Option<String>;
     }
@@ -33,34 +42,28 @@ impl DictionaryWrapper {
         DictionaryWrapper::default()
     }
 
-    pub fn load_dictionaries(&mut self) {
-        let lao_handle = thread::spawn(|| {
-            let mut d = LaoDictionary::new().expect("Expect to create a laotian dictionary");
-            d.load();
+    pub async fn load_dictionaries(&mut self) {
+        let cn_fut = vec![
+            utils::load_chinese_dictionary(ChineseVersion::Simplified),
+            utils::load_chinese_dictionary(ChineseVersion::Traditional),
+        ];
 
-            d
-        });
+        let la = utils::load_laotian_dictionary().await;
+        let mut cn_res = join_all(cn_fut).await;
 
-        let cn_handle = thread::spawn(|| {
-            let mut d = CNDictionary::new(None).expect("Expect to create a chinese dictionary");
-            d.load().expect("Expect to load cn dictionary");
-
-            d
-        });
-
-        let (la, cn) = (
-            lao_handle.join().unwrap(),
-            cn_handle.join().unwrap()
-        );
-
-        self.chinese = Some(cn);
+        self.t_chinese = Some(cn_res.pop().unwrap());
+        self.s_chinese = Some(cn_res.pop().unwrap());
         self.laotian = Some(la);
     }
 
     fn search_in_dictionaries(&self, lang: ffi::Language, sentence: &str) -> Option<String> {
         let list = match lang {
-            ffi::Language::Chinese => {
-                let cn = self.chinese.as_ref().unwrap();
+            ffi::Language::TraditionalChinese => {
+                let cn = self.t_chinese.as_ref().unwrap();
+                cn.get_list_detected_words(sentence)
+            },
+            ffi::Language::SimplifiedChinese => {
+                let cn = self.s_chinese.as_ref().unwrap();
                 cn.get_list_detected_words(sentence)
             },
             ffi::Language::Laotian => {
