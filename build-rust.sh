@@ -23,6 +23,6 @@ cargo build --target aarch64-apple-ios-sim
 mkdir -p ./target/universal-ios/debug
 
 lipo \
-    ./target/aarch64-apple-ios-sim/debug/libxuexie_swifty.a \
+    ./target/aarch64-apple-ios-sim/debug/libxuexi_swifty.a \
     ./target/x86_64-apple-ios/debug/libxuexi_swifty.a -create -output \
     ./target/universal-ios/debug/libxuexi_swifty.a
