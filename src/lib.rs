@@ -40,14 +40,14 @@ mod ffi {
         // 
         // * `&mut self`
         // * `version` - CNVersion
-        async fn load_chinese_dictionary(&mut self, version: CNVersion);
+        async fn load_chinese_dictionary(&mut self, version: CNVersion) -> String;
 
         // Load a laotian dictionary
         // 
         // # Arguments
         // 
         // * `&mut self`
-        async fn load_laotian_dictionary(&mut self);
+        async fn load_laotian_dictionary(&mut self) -> String;
 
         // Search a text within the dictionary
         // 
@@ -65,19 +65,34 @@ impl DictionaryWrapper {
         DictionaryWrapper::default()
     }
 
-    pub async fn load_chinese_dictionary(&mut self, version: CNVersion) {
+    pub async fn load_chinese_dictionary(&mut self, version: CNVersion) -> String {
         let dictionary = match version {
             CNVersion::Simplified => utils::load_chinese_dictionary(ChineseVersion::Simplified).await,
             CNVersion::Traditional => utils::load_chinese_dictionary(ChineseVersion::Traditional).await
         };
 
-        self.chinese = Some(dictionary);
+        let res = match dictionary {
+            Ok(dic) => dic,
+            Err(err) => return err.to_string()
+        };
+
+        self.chinese = Some(res);
+
+        String::new()
     }
 
-    pub async fn load_laotian_dictionary(&mut self) {
-        let dictionary = utils::load_laotian_dictionary().await;
+    pub async fn load_laotian_dictionary(&mut self) -> String {
+        let dictionary = utils::load_laotian_dictionary()
+            .await;
+
+        let res = match dictionary {
+            Ok(res) => res,
+            Err(err) => return err.to_string()
+        };
         
-        self.laotian = Some(dictionary);
+        self.laotian = Some(res);
+
+        String::new()
     }
 
     fn search_in_dictionaries(&self, lang: ffi::Language, sentence: &str) -> Option<String> {
@@ -92,11 +107,12 @@ impl DictionaryWrapper {
             }
         };
 
-        if let Some(def) = list {
-            let json = serde_json::to_string(&def).expect("Expect to convert the list of definitions to JSON");
-            return Some(json);
+        match list {
+            Some(def) => {
+                let json = serde_json::to_string(&def).expect("Expect to convert the list of definitions to JSON");
+                Some(json)
+            },
+            None => None
         }
-
-        None
     }
 }
