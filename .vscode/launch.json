@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug Example (example)",
+            "program": "${workspaceFolder:xuexi-swifty}/example/.build/debug/Example",
+            "args": [],
+            "cwd": "${workspaceFolder:xuexi-swifty}/example",
+            "preLaunchTask": "swift: Build Debug Example (example)"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Release Example (example)",
+            "program": "${workspaceFolder:xuexi-swifty}/example/.build/release/Example",
+            "args": [],
+            "cwd": "${workspaceFolder:xuexi-swifty}/example",
+            "preLaunchTask": "swift: Build Release Example (example)"
+        }
+    ]
+}

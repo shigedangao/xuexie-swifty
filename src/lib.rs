@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-use ffi::CNVersion;
 use xuexi::dictionary::{
     Dictionary,
     Chinese,
@@ -14,6 +13,10 @@ mod utils;
 pub struct DictionaryWrapper {
     chinese: Option<Dictionary<Chinese>>,
     laotian: Option<Dictionary<Laotian>>
+}
+pub struct CharacterCounter {
+    character: String,
+    count: i64
 }
 
 #[swift_bridge::bridge]
@@ -58,6 +61,16 @@ mod ffi {
         // * `sentence` - &str
         fn search_in_dictionaries(&self, lang: Language, sentence: &str) -> Option<String>;
     }
+
+    extern "Rust" {
+        type CharacterCounter;
+
+        fn count_character_for_given_sentence(content: &str) -> Vec<CharacterCounter>;
+
+        fn get_character(&self) -> String;
+
+        fn get_count(&self) -> i64;
+    }
 }
 
 impl DictionaryWrapper {
@@ -65,10 +78,10 @@ impl DictionaryWrapper {
         DictionaryWrapper::default()
     }
 
-    pub async fn load_chinese_dictionary(&mut self, version: CNVersion) -> String {
+    pub async fn load_chinese_dictionary(&mut self, version: ffi::CNVersion) -> String {
         let dictionary = match version {
-            CNVersion::Simplified => utils::load_chinese_dictionary(ChineseVersion::Simplified).await,
-            CNVersion::Traditional => utils::load_chinese_dictionary(ChineseVersion::Traditional).await
+            ffi::CNVersion::Simplified => utils::load_chinese_dictionary(ChineseVersion::Simplified).await,
+            ffi::CNVersion::Traditional => utils::load_chinese_dictionary(ChineseVersion::Traditional).await
         };
 
         let res = match dictionary {
@@ -115,4 +128,33 @@ impl DictionaryWrapper {
             None => None
         }
     }
+}
+
+impl CharacterCounter {
+    fn get_character(&self) -> String {
+        self.character.clone()
+    }
+
+    fn get_count(&self) -> i64 {
+        self.count
+    }
+}
+
+/// Expose the count character for a given string
+/// 
+/// # Arguments
+/// 
+/// * `content` - &str
+fn count_character_for_given_sentence(content: &str) -> Vec<CharacterCounter> {
+    let res = match xuexi::get_character_by_usage(content) {
+        Ok(res) => res,
+        Err(_) => return Vec::new()
+    };
+    
+    let vec: Vec<_> = res.into_iter().map(|(k, v)| CharacterCounter {
+        character: String::from(k),
+        count: v
+    }).collect();
+    
+    vec
 }
