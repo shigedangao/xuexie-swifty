@@ -23,3 +23,11 @@ add the following attribute at the top of a method
 ```
 @available(macOS 10.15, *)
 ```
+
+## Run
+
+To run the swift example use the command within the Example folder
+
+```bash
+swift run
+```

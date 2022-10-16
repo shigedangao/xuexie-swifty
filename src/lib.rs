@@ -12,7 +12,8 @@ mod utils;
 #[derive(Default)]
 pub struct DictionaryWrapper {
     chinese: Option<Dictionary<Chinese>>,
-    laotian: Option<Dictionary<Laotian>>
+    laotian: Option<Dictionary<Laotian>>,
+    errors: Option<Vec<String>>
 }
 pub struct CharacterCounter {
     character: String,
@@ -21,12 +22,12 @@ pub struct CharacterCounter {
 
 #[swift_bridge::bridge]
 mod ffi {
-    enum Language {
+    enum XuexiLibLanguage {
         Chinese,
         Laotian
     }
 
-    enum CNVersion {
+    enum XuexiCNVersion {
         Simplified,
         Traditional
     }
@@ -38,28 +39,37 @@ mod ffi {
         fn new() -> DictionaryWrapper;
 
         // Load a chinese dictionary based on the version that the user want
+        // The binding does not yet support Option<T> when running in async context
         // 
         // # Arguments
         // 
         // * `&mut self`
-        // * `version` - CNVersion
-        async fn load_chinese_dictionary(&mut self, version: CNVersion) -> String;
+        // * `version` - XuexiCNVersion
+        async fn load_chinese_dictionary(&mut self, version: XuexiCNVersion);
 
         // Load a laotian dictionary
+        // The binding does not yet support Option<T> when running in async context
         // 
         // # Arguments
         // 
         // * `&mut self`
-        async fn load_laotian_dictionary(&mut self) -> String;
+        async fn load_laotian_dictionary(&mut self);
 
         // Search a text within the dictionary
         // 
         // # Arguments
         // 
         // * `&self`
-        // * `lang` - Language
+        // * `lang` - XuexiLibLanguage
         // * `sentence` - &str
-        fn search_in_dictionaries(&self, lang: Language, sentence: &str) -> Option<String>;
+        fn search_in_dictionaries(&self, lang: XuexiLibLanguage, sentence: &str) -> Option<String>;
+        
+        // Return a vector of errors if there's an error /!\ The binding does not support Option<Vec<T>> yet
+        //
+        // # Arguments
+        //
+        // * `&self`
+        fn has_errors(&self) -> Vec<String>;
     }
 
     extern "Rust" {
@@ -78,43 +88,51 @@ impl DictionaryWrapper {
         DictionaryWrapper::default()
     }
 
-    pub async fn load_chinese_dictionary(&mut self, version: ffi::CNVersion) -> String {
+    pub async fn load_chinese_dictionary(&mut self, version: ffi::XuexiCNVersion) {
         let dictionary = match version {
-            ffi::CNVersion::Simplified => utils::load_chinese_dictionary(ChineseVersion::Simplified).await,
-            ffi::CNVersion::Traditional => utils::load_chinese_dictionary(ChineseVersion::Traditional).await
+            ffi::XuexiCNVersion::Simplified => utils::load_chinese_dictionary(ChineseVersion::Simplified).await,
+            ffi::XuexiCNVersion::Traditional => utils::load_chinese_dictionary(ChineseVersion::Traditional).await
         };
 
         let res = match dictionary {
             Ok(dic) => dic,
-            Err(err) => return err.to_string()
+            Err(err) => {
+                if let Some(errs) = self.errors.as_mut() {
+                    errs.push(err.to_string());
+                }
+
+                return
+            }
         };
 
         self.chinese = Some(res);
-
-        String::new()
     }
 
-    pub async fn load_laotian_dictionary(&mut self) -> String {
+    pub async fn load_laotian_dictionary(&mut self) {
         let dictionary = utils::load_laotian_dictionary()
             .await;
 
         let res = match dictionary {
             Ok(res) => res,
-            Err(err) => return err.to_string()
+            Err(err) => {
+                if let Some(errs) = self.errors.as_mut() {
+                    errs.push(err.to_string());
+                }
+
+                return
+            }
         };
         
         self.laotian = Some(res);
-
-        String::new()
     }
 
-    fn search_in_dictionaries(&self, lang: ffi::Language, sentence: &str) -> Option<String> {
+    fn search_in_dictionaries(&self, lang: ffi::XuexiLibLanguage, sentence: &str) -> Option<String> {
         let list = match lang {
-            ffi::Language::Chinese => {
+            ffi::XuexiLibLanguage::Chinese => {
                 let cn = self.chinese.as_ref().expect("Expect to have a traditional chinese dictionary");
                 cn.get_list_detected_words(sentence)
             },
-            ffi::Language::Laotian => {
+            ffi::XuexiLibLanguage::Laotian => {
                 let lao = self.laotian.as_ref().expect("Expect to have a laotian dictionary");
                 lao.get_list_detected_words(sentence)
             }
@@ -127,6 +145,14 @@ impl DictionaryWrapper {
             },
             None => None
         }
+    }
+
+    fn has_errors(&self) -> Vec<String> {
+        if let Some(errors) = self.errors.to_owned() {
+            return errors
+        }
+
+        Vec::new()
     }
 }
 

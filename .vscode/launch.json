@@ -17,6 +17,24 @@
             "args": [],
             "cwd": "${workspaceFolder:xuexi-swifty}/example",
             "preLaunchTask": "swift: Build Release Example (example)"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug Example (Example)",
+            "program": "${workspaceFolder:xuexi-swifty}/Example/.build/debug/Example",
+            "args": [],
+            "cwd": "${workspaceFolder:xuexi-swifty}/Example",
+            "preLaunchTask": "swift: Build Debug Example (Example)"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Release Example (Example)",
+            "program": "${workspaceFolder:xuexi-swifty}/Example/.build/release/Example",
+            "args": [],
+            "cwd": "${workspaceFolder:xuexi-swifty}/Example",
+            "preLaunchTask": "swift: Build Release Example (Example)"
         }
     ]
 }
