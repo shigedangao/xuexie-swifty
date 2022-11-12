@@ -1,4 +1,4 @@
-// swift-tools-version: 5.5.0
+// swift-tools-version: 5.7.1
 
 // Example/Package.swift
 import PackageDescription
